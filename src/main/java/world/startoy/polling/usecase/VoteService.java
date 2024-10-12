@@ -10,10 +10,7 @@ import world.startoy.polling.config.CloudFrontConfig;
 import world.startoy.polling.domain.Poll;
 import world.startoy.polling.domain.PollOption;
 import world.startoy.polling.domain.Vote;
-import world.startoy.polling.usecase.dto.OptionVoteRateDTO;
-import world.startoy.polling.usecase.dto.PollOptionResponse;
-import world.startoy.polling.usecase.dto.VoteCreateRequest;
-import world.startoy.polling.usecase.dto.VoteCreateResponse;
+import world.startoy.polling.usecase.dto.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -135,4 +132,21 @@ public class VoteService {
         List<PollOptionResponse> results =  voteRepository.findPollOptionsWithVoteCount(pollId, cloudFrontUrl);
         return results;
     }
+
+    // 투표 삭제
+    @Transactional
+    public void deleteVote(Long pollId, String voterIp) {
+        // 주어진 pollId와 voterIp에 해당하는 투표를 조회
+        List<Vote> votes = voteRepository.findByPollIdAndVoterIp(pollId, voterIp);
+
+        // 해당 투표가 존재하는 경우 삭제
+        if (!votes.isEmpty()) {
+            for (Vote vote : votes) {
+                voteRepository.delete(vote);
+            }
+        } else {
+            throw new IllegalArgumentException("해당 투표를 찾을 수 없습니다."); // 예외 처리
+        }
+    }
+
 }
