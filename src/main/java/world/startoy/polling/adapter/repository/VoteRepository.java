@@ -27,5 +27,7 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
             "WHERE o.poll.id = :pollId " +
             "GROUP BY o.pollOptionUid, o.pollOptionText, o.pollOptionSeq, f.fileUid, f.fileName")
     List<PollOptionResponse> findPollOptionsWithVoteCount(@Param("pollId") Long pollId, @Param("cloudFrontUrl") String cloudFrontUrl);
+
+    List<Vote> findByPollIdAndOptionIdAndVoterIp(Long pollId, Long optionId, String voterIp);
 }
 
