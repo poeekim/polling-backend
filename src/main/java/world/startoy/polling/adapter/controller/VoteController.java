@@ -2,13 +2,11 @@ package world.startoy.polling.adapter.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import world.startoy.polling.usecase.UserService;
 import world.startoy.polling.usecase.VoteService;
-import world.startoy.polling.usecase.dto.VoteCancelRequest;
 import world.startoy.polling.usecase.dto.VoteCreateRequest;
 import world.startoy.polling.usecase.dto.VoteCreateResponse;
 
