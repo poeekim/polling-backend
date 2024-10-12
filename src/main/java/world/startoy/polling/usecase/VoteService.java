@@ -10,10 +10,7 @@ import world.startoy.polling.config.CloudFrontConfig;
 import world.startoy.polling.domain.Poll;
 import world.startoy.polling.domain.PollOption;
 import world.startoy.polling.domain.Vote;
-import world.startoy.polling.usecase.dto.OptionVoteRateDTO;
-import world.startoy.polling.usecase.dto.PollOptionResponse;
-import world.startoy.polling.usecase.dto.VoteCreateRequest;
-import world.startoy.polling.usecase.dto.VoteCreateResponse;
+import world.startoy.polling.usecase.dto.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -134,5 +131,18 @@ public class VoteService {
         String cloudFrontUrl = cloudFrontConfig.getCloudfrontUrl();
         List<PollOptionResponse> results =  voteRepository.findPollOptionsWithVoteCount(pollId, cloudFrontUrl);
         return results;
+    }
+
+    // 투표 삭제
+    @Transactional
+    public void deleteVote(String voteUid, String voterIp) {
+        Vote vote = voteRepository.findByVoteUid(voteUid)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 voteUid입니다."));
+
+        if (!vote.getVoterIp().equals(voterIp)) {
+            throw new IllegalStateException("Ip가 일치하지 않아 투표를 삭제할 수 없습니다.");
+        }
+
+        voteRepository.delete(vote);
     }
 }

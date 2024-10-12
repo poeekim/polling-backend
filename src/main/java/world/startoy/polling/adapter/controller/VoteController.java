@@ -3,10 +3,8 @@ package world.startoy.polling.adapter.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 import world.startoy.polling.usecase.UserService;
 import world.startoy.polling.usecase.VoteService;
 import world.startoy.polling.usecase.dto.VoteCreateRequest;
@@ -29,5 +27,11 @@ public class VoteController {
         return voteService.createVote(request, voterIp);
     }
 
+    @DeleteMapping("/{voteUid}")
+    public ResponseEntity<String> deleteVote(@PathVariable String voteUid, HttpServletRequest httpRequest) {
+        String voterIp = userService.getClientIp(httpRequest);
+        voteService.deleteVote(voteUid, voterIp);
+        return ResponseEntity.ok("투표 취소가 완료됐습니다.");
+    }
 }
 
