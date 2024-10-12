@@ -135,9 +135,19 @@ public class VoteService {
 
     // 투표 삭제
     @Transactional
-    public void deleteVote(Long pollId, String voterIp) {
+    public void deleteVote(String pollUid, String selectedPollOptionUid, String voterIp) {
+        // pollUid를 이용하여 Poll 객체 조회
+        Poll poll = pollService.findByPollUid(pollUid);
+        if (poll == null) {
+            throw new IllegalArgumentException("존재하지 않는 pollUid입니다.");
+        }
+
+        // selectedPollOptionUid를 이용하여 PollOption 객체 조회
+        PollOption pollOption = pollOptionRepository.findByPollOptionUid(selectedPollOptionUid)
+                .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 PollOptionUid입니다."));
+
         // 주어진 pollId와 voterIp에 해당하는 투표를 조회
-        List<Vote> votes = voteRepository.findByPollIdAndVoterIp(pollId, voterIp);
+        List<Vote> votes = voteRepository.findByPollIdAndOptionIdAndVoterIp(poll.getId(), pollOption.getId(), voterIp);
 
         // 해당 투표가 존재하는 경우 삭제
         if (!votes.isEmpty()) {
