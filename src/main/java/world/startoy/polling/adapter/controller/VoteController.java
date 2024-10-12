@@ -2,6 +2,7 @@ package world.startoy.polling.adapter.controller;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -28,12 +29,13 @@ public class VoteController {
         return voteService.createVote(request, voterIp);
     }
 
-    // 특정 투표 삭제 API
     @DeleteMapping
-    public ResponseEntity<String> deleteVote(@RequestBody VoteCancelRequest request) {
-        voteService.deleteVote(request.getPollId(), request.getVoterIp());
-        return ResponseEntity.ok("투표 취소가 완료됐습니다."); // 문자열 메시지를 반환
-    }
+    public ResponseEntity<String> deleteVote(@Valid @RequestBody VoteCancelRequest request, HttpServletRequest httpRequest) {
+        String voterIp = userService.getClientIp(httpRequest); // 클라이언트 IP 가져오기
+        request.setVoterIp(voterIp); // 요청에 IP 설정
 
+        voteService.deleteVote(request.getPollUid(), request.getSelectedPollOptionUid(), request.getVoterIp());
+        return ResponseEntity.ok("투표 취소가 완료됐습니다.");
+    }
 }
 
