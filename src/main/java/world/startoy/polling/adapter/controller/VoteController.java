@@ -29,12 +29,10 @@ public class VoteController {
         return voteService.createVote(request, voterIp);
     }
 
-    @DeleteMapping
-    public ResponseEntity<String> deleteVote(@Valid @RequestBody VoteCancelRequest request, HttpServletRequest httpRequest) {
-        String voterIp = userService.getClientIp(httpRequest); // 클라이언트 IP 가져오기
-        request.setVoterIp(voterIp); // 요청에 IP 설정
-
-        voteService.deleteVote(request.getPollUid(), request.getSelectedPollOptionUid(), request.getVoterIp());
+    @DeleteMapping("/{voteUid}")
+    public ResponseEntity<String> deleteVote(@PathVariable String voteUid, HttpServletRequest httpRequest) {
+        String voterIp = userService.getClientIp(httpRequest);
+        voteService.deleteVote(voteUid, voterIp);
         return ResponseEntity.ok("투표 취소가 완료됐습니다.");
     }
 }
