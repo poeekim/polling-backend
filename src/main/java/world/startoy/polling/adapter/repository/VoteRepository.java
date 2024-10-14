@@ -9,6 +9,7 @@ import world.startoy.polling.domain.Vote;
 import world.startoy.polling.usecase.dto.PollOptionResponse;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface VoteRepository extends JpaRepository<Vote, Long> {
@@ -27,5 +28,7 @@ public interface VoteRepository extends JpaRepository<Vote, Long> {
             "WHERE o.poll.id = :pollId " +
             "GROUP BY o.pollOptionUid, o.pollOptionText, o.pollOptionSeq, f.fileUid, f.fileName")
     List<PollOptionResponse> findPollOptionsWithVoteCount(@Param("pollId") Long pollId, @Param("cloudFrontUrl") String cloudFrontUrl);
+
+    Optional<Vote> findByVoteUid(String voteUid);
 }
 

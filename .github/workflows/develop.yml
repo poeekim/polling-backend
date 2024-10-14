@@ -1,14 +1,10 @@
 name: Develop Deploy
-
 on:
   push:
     branches: ['develop']
-
 jobs:
-  # 빌드 및 테스트 Job
-  build:
+  deploy:
     runs-on: ubuntu-latest
-
     services:
       mysql:
         image: mysql:latest
@@ -20,9 +16,8 @@ jobs:
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=5
-
     steps:
-      - name: 리포지토리 체크아웃
+      - name: Repository 체크아웃
         uses: actions/checkout@v2
 
       - name: JDK 설치
@@ -36,111 +31,43 @@ jobs:
 
       - name: Gradle 빌드
         env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }} # Sentry 인증 토큰 전달
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: ./gradlew clean build --scan
 
-      - name: 빌드 디렉토리 확인
-        run: ls -la build/
-
-      - name: 빌드 결과 확인
-        run: ls -la build/libs/
-
-      # 테스트 실행 (MySQL 서비스에 연결)
       - name: 테스트 실행
         env:
            SPRING_PROFILES_ACTIVE: test
            SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/polling?serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
            SPRING_DATASOURCE_USERNAME: polling
            SPRING_DATASOURCE_PASSWORD: polling
-        run: ./gradlew test --scan # --scan 옵션 추가
+        run: ./gradlew test --scan
 
-
-  # 배포 Job
-  deploy:
-    needs: build # build job이 성공해야 deploy가 실행됨
-    runs-on: ubuntu-latest
-    #if: github.ref == 'refs/heads/main' # main 브랜치에만 배포
-
-          
-    steps:
-      - name: 리포지토리 체크아웃
-        uses: actions/checkout@v2
-        
-      - name: JDK 설치
-        uses: actions/setup-java@v3
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: AWS 인증하기
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-region: ap-northeast-2
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: 현재 작업 디렉토리 확인
-        run: pwd # 현재 작업 디렉토리 확인 ( /home/runner/work/polling-backend/polling-backend )
-
-      - name: Gradle Wrapper에 실행 권한 추가
-        run: chmod +x ./gradlew
-        
-      - name: Gradle 빌드 (deploy job에서)
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }} # Sentry 인증 토큰 전달
-        run: ./gradlew clean build --scan
-        #working-directory: ./polling-backend # 빌드할 디렉토리 설정
-
-      - name: 빌드 디렉토리 확인
-        run: ls -la /home/runner/work/polling-backend/polling-backend/build/ # 절대 경로 사용
-
-      - name: 빌드 결과 확인
-        run: ls -la /home/runner/work/polling-backend/polling-backend/build/libs/ # 절대 경로 사용
-         
-########################################################
-          
-      # - name: 기존 JAR 파일 삭제 (서버에서)
-      #   uses: appleboy/ssh-action@master
-      #   with:
-      #     host: ${{ secrets.LIGHTSAIL_HOST_DEV }}
-      #     username: ubuntu
-      #     key: ${{ secrets.LIGHTSAIL_SSH_KEY_DEV }}
-      #     script: | # 실행 중인 애플리케이션 프로세스가 있는지 확인하고, 있으면 종료 -> 기존 JAR 파일 삭제
-      #       if pgrep -f "java -jar /home/ubuntu/polling-backend/polling-0.0.1-SNAPSHOT.jar"; then 
-      #         echo "애플리케이션 프로세스를 종료합니다."
-      #         pkill -f 'java -jar /home/ubuntu/polling-backend/*.jar'
-      #       else
-      #         echo "실행 중인 애플리케이션 프로세스가 없습니다."
-      #       fi
-      #       rm -rf /home/ubuntu/polling-backend/*.jar
-
-      #     debug: true
-########################################################
-
-      
       - name: JAR 파일 전송
-        uses: appleboy/scp-action@v0.1.3 # master -> 버전 명시
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.LIGHTSAIL_HOST_DEV }}
           username: ubuntu
           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-          source: '/home/runner/work/polling-backend/polling-backend/build/libs/polling-0.0.1-SNAPSHOT.jar' # 절대 경로 사용
+          source: '/home/runner/work/polling-backend/polling-backend/build/libs/polling-0.0.1-SNAPSHOT.jar'
           target: '/home/ubuntu/polling-backend'
-          overwrite: true # 파일 덮어쓰기 허용
-          debug: true # 디버그 모드 활성화
-          timeout: 150s # 타임아웃 시간 증가
-      
-
-      - name: 서버에서 애플리케이션 실행
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.LIGHTSAIL_HOST_DEV }}
-          username: ubuntu
-          key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
-
-          script: |
-            java -jar /home/ubuntu/polling-backend/github/workspace/build/libs/polling-0.0.1-SNAPSHOT.jar > /home/ubuntu/polling-backend/github/workspace/build/libs/app.log 2>&1 &
-
+          overwrite: true
           debug: true
-          timeout: 1500s
-          command_timeout: 1500s
+          timeout: 300s
+      
+      - name: 실행 중인 jar 파일 종료
+        uses: appleboy/ssh-action@v1.1.0
+        continue-on-error: true
+        with:
+           host: ${{ secrets.LIGHTSAIL_HOST_DEV }}
+           username: ubuntu
+           key: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+           debug: true
+           timeout: 300s
+           script: |
+            pids=$(pgrep -f "java -jar /home/ubuntu/polling-backend/github/workspace/build/libs/polling-0.0.1-SNAPSHOT.jar")
+
+            if [ -n "$pids" ]; then
+              for pid in $pids; do
+                kill -15 $pid
+              done
+            fi
