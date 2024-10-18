@@ -19,10 +19,7 @@ import world.startoy.polling.usecase.dto.*;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -55,20 +52,25 @@ public class PostService {
     // 게시글 상세 조회 + 옵션별 득표수 + 사용자 투표 옵션(사용자 투표 여부)
     public Optional<PostDetailResponse> findPostDetailResponseByPostUid(String postUid, String voterIp) {
         // Native SQL Query 작성
-        String sql = "SELECT " +
-                "pp.post_uid, pp.title, ppf.file_name, pp.created_at, pp.created_by, " + // 0 1 2 3 4
-                "pp2.poll_uid, pp2.poll_seq, pp2.poll_category, pp2.poll_description, " + // 5 6 7 8
-                "ppo.poll_option_uid, ppo.poll_option_seq, ppo.poll_option_text, pof.file_name, " + // 9 10 11 12
-                "COUNT(pv.voter_ip) AS votedCount, " + // 13 // 옵션별 득표수
-                "(SELECT count(vote_id) FROM pl_vote WHERE option_id = ppo.poll_option_id AND voter_ip = ?2) AS hasVoted " + //14 // 사용자 투표 옵션 // 위치 기반 파라미터 voterIp
-                "FROM pl_post pp " +
-                "LEFT JOIN pl_file_storage ppf ON pp.file_id = ppf.file_id " +
-                "LEFT JOIN pl_poll pp2 ON pp.post_id = pp2.post_id " +
-                "LEFT JOIN pl_poll_option ppo ON pp2.poll_id = ppo.poll_id " +
-                "LEFT JOIN pl_file_storage pof ON ppo.file_id = pof.file_id " +
-                "LEFT JOIN pl_vote pv ON pv.poll_id = pp2.poll_id AND pv.option_id = ppo.poll_option_id " +
-                "WHERE pp.post_uid = ?1 " + // 위치 기반 파라미터 postUid
-                "GROUP BY ppo.poll_option_uid";
+        String sql =
+                "SELECT " +
+                        "pp.post_uid, pp.title, ppf.file_name, pp.created_at, pp.created_by, " +
+                        "pp2.poll_uid, pp2.poll_seq, pp2.poll_category, pp2.poll_description, " +
+                        "ppo.poll_option_uid, ppo.poll_option_seq, ppo.poll_option_text, pof.file_name, " +
+                        "COUNT(pv.voter_ip) AS votedCount, " +
+                        "(SELECT count(vote_id) FROM pl_vote WHERE option_id = ppo.poll_option_id AND voter_ip = ?2) AS hasVoted, " +
+                        "ROW_NUMBER() OVER (ORDER BY pp2.poll_seq) AS row_num " +
+                        "FROM pl_post pp " +
+                        "LEFT JOIN pl_file_storage ppf ON pp.file_id = ppf.file_id " +
+                        "LEFT JOIN pl_poll pp2 ON pp.post_id = pp2.post_id " +
+                        "LEFT JOIN pl_poll_option ppo ON pp2.poll_id = ppo.poll_id " +
+                        "LEFT JOIN pl_file_storage pof ON ppo.file_id = pof.file_id " +
+                        "LEFT JOIN pl_vote pv ON pv.poll_id = pp2.poll_id AND pv.option_id = ppo.poll_option_id " +
+                        "WHERE pp.post_uid = ?1 " +
+                        "GROUP BY pp.post_uid, pp.title, ppf.file_name, pp.created_at, pp.created_by, " +
+                        "pp2.poll_uid, pp2.poll_seq, pp2.poll_category, pp2.poll_description, " +
+                        "ppo.poll_option_uid, ppo.poll_option_seq, ppo.poll_option_text, pof.file_name " +
+                        "ORDER BY row_num";
 
         // Native SQL Query 실행
         List<Object[]> result = entityManager.createNativeQuery(sql)
@@ -115,6 +117,7 @@ public class PostService {
                                     .votedCount((Long) optionRow[13])
                                     .hasVoted(((Number) optionRow[14]).intValue() > 0) // 투표 여부 확인
                                     .build())
+                            .sorted(Comparator.comparingInt(PollOptionResponse::getPollOptionSeq))
                             .collect(Collectors.toList());
 
                     return PollDetailResponse.builder()
@@ -125,7 +128,8 @@ public class PostService {
                             .pollOptions(pollOptions)
                             .build();
                 })
-                .collect(Collectors.toList());
+                .sorted(Comparator.comparingInt(PollDetailResponse::getPollSeq))
+                .collect(Collectors.toCollection(LinkedList::new));
 
         // PostDetailResponse 생성
         return Optional.ofNullable(PostDetailResponse.builder()
